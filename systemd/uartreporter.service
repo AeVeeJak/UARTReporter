@@ -1,11 +1,11 @@
 [Unit]
-Description=Simple Hello World Program
+Description=UART Reporter Program
 After=mpd.service raatapp.service upmpdcli.service
 Requisite=mpd.service raatapp.service upmpdcli.service
 
 [Service]
 Type=simple
-ExecStart=/root/HelloWorld/a.out
+ExecStart=/root/UARTReporter/a.out
 
 [Install]
 WantedBy=multi-user.target
