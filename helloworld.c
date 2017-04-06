@@ -52,7 +52,7 @@ main()
     //sleep(2);
 
 //    for(i = 0; i < 1; i++)
-    while(1)
+    while(0)
     {
         sleep(2);
         fp = popen("/sbin/ifconfig wlan0", "r");
