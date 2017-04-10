@@ -54,7 +54,7 @@ main()
     /////////////////////////////////////////
     while(flag)
     {
-        sleep(5);
+        sleep(10);
         fp = popen("/sbin/ifconfig wlan0", "r");
         fgets(returnData, 90, fp);
         fgets(returnData, 90, fp);
