@@ -1,4 +1,6 @@
 /* Write to UART */
+
+// INCLUDES
 #include<string.h>
 #include<stdlib.h>
 #include<stdio.h>
@@ -6,35 +8,72 @@
 #include<fcntl.h>
 #include<termios.h>
 #include<stdio.h>
+#include<stdbool.h>
+
+// MACROS
+#define	CONNECTED	1
+#define DISCONNECTED	0
+#define WLAN0		"/sbin/ifconfig wlan0"
+#define ETH0		"/sbin/ifconfig eth0"
+
+int get_network_status(char * cmd_path)
+{
+    FILE * fp;
+    char returnData[100];
+    char * oldDataPtr;
+    static char old_eth0_data[100] = " ";
+    static char old_wlan0_data[100] = " ";
+
+    /////////////////////////////////
+    // Setup ptr to correct old data
+    ////////////////////////////////
+    if(cmd_path == WLAN0)
+        oldDataPtr = old_wlan0_data;
+    else if(cmd_path == ETH0)
+	oldDataPtr = old_eth0_data;
+ 
+    /////////////////////////////////
+    // execute cmd on network device
+    /////////////////////////////////
+    fp = popen(cmd_path, "r");
+
+    ////////////////////////////////
+    // parse fifth line of returned
+    // FILE stream data.  This line
+    // had the number of rcv packets
+    ////////////////////////////////
+    fgets(returnData, 90, fp);
+    fgets(returnData, 90, fp);
+    fgets(returnData, 90, fp);
+    fgets(returnData, 90, fp);
+    if(fgets(returnData, 90, fp) != NULL)
+    {
+	if(strcmp(returnData, oldDataPtr) == 0)
+	{
+	    return DISCONNECTED;
+	}
+        else
+	{
+	    strcpy(oldDataPtr, returnData);
+	    return CONNECTED;
+	}
+    }
+}
 
 main()
 {
     struct termios tio;
-    struct termios stdio;
-    struct termios old_stdio;
     int tty_fd;
-    int i;
+    int network_status = CONNECTED;
+    int wlan0_status = CONNECTED;
+    int eth0_status = CONNECTED;
     unsigned char c = (unsigned char)0xA1;
     unsigned char d = (unsigned char)0xA2;
-    FILE *fp;
-    char returnData[64];
+    bool flag = true;
 
-    tcgetattr(STDOUT_FILENO, &old_stdio);
-    memset(&stdio, 0, sizeof(stdio));
-    tcgetattr(STDOUT_FILENO, &stdio);			// I added
-#if 0    
-    stdio.c_iflag = 0;
-    stdio.c_oflag = 0;
-    stdio.c_cflag = 0;
-    stdio.c_lflag = 0;
-    stdio.c_cc[VMIN] = 1;
-    stdio.c_cc[VTIME] = 0;
-#endif
-    tcsetattr(STDOUT_FILENO, TCSANOW, &stdio);
-    tcsetattr(STDOUT_FILENO, TCSAFLUSH, &stdio);
-    fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);		// non-blocking read
-
-    // this is one I car about
+    ///////////////////////////////////////////////
+    // allocate and setup terminal structure params
+    ///////////////////////////////////////////////
     memset(&tio, 0, sizeof(tio));
     tio.c_iflag = 0;
     tio.c_oflag = 0;
@@ -42,23 +81,58 @@ main()
     tio.c_lflag = 0;
     tio.c_cc[VMIN] = 1;
     tio.c_cc[VTIME] = 5;
+
+    //////////////////////////////
+    // setup uart1
+    //////////////////////////////
     tty_fd = open("/dev/ttyO1", O_RDWR | O_NONBLOCK);
     cfsetospeed(&tio, B115200);
     cfsetispeed(&tio, B115200);
     tcsetattr(tty_fd, TCSANOW, &tio);
 
+    //////////////////////////////
+    // tx uart "network connected
+    //////////////////////////////
     write(tty_fd, &c, 1);
-    printf("All Good");
-    //sleep(2);
 
-//    for(i = 0; i < 1; i++)
-    while(0)
+    //////////////////////////////
+    // terminal display
+    /////////////////////////////
+    printf("All Good");
+
+    /////////////////////////////////////////
+    // check on status of network connections
+    /////////////////////////////////////////
+    while(1)
     {
-        sleep(2);
-        fp = popen("/sbin/ifconfig wlan0", "r");
-        //if(fp == NULL)
-        if(fgets(returnData, 64, fp) == NULL)
-            write(tty_fd, &d, 1);
-    }
+        ///////////////////////////////////////
+        // Get Wired and Wireless network statu
+        ///////////////////////////////////////
+        if(wlan0_status == CONNECTED)
+            wlan0_status = get_network_status(WLAN0); //DISCONNECTED: must reset
+        eth0_status = get_network_status(ETH0);
+
+	///////////////////////////////////////
+        // If network status changed, Uart Tx
+        //////////////////////////////////////
+        if(network_status == CONNECTED)
+	{
+	    if(wlan0_status == DISCONNECTED && eth0_status == DISCONNECTED)
+	    {
+	        network_status = DISCONNECTED;
+	        write(tty_fd, &d, 1);
+	    }
+	    else sleep(8);
+	}
+	else if(network_status == DISCONNECTED)
+	{
+	    if(wlan0_status == CONNECTED || eth0_status == CONNECTED)
+	    {
+		network_status = CONNECTED;
+		write(tty_fd, &c, 1);
+		sleep(3);
+	    }
+	}
+    }   
     close(tty_fd);
 }
