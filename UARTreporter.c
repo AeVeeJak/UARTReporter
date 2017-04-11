@@ -65,8 +65,9 @@ main()
     struct termios tio;
     int tty_fd;
     int network_status = CONNECTED;
-    int wlan0_status = CONNECTED;
+    int wlan0_status = DISCONNECTED;
     int eth0_status = CONNECTED;
+    int wlan0_status_at_startup = DISCONNECTED;
     unsigned char c = (unsigned char)0xA1;
     unsigned char d = (unsigned char)0xA2;
     bool flag = true;
@@ -100,6 +101,14 @@ main()
     /////////////////////////////
     printf("All Good");
 
+    //////////////////////////////////////
+    // check wireless status at startup
+    // if DISCONNECTED, ignore until reset
+    //////////////////////////////////////
+    wlan0_status_at_startup = get_network_status(WLAN0);
+    sleep(10);
+    wlan0_status_at_startup = get_network_status(WLAN0);
+
     /////////////////////////////////////////
     // check on status of network connections
     /////////////////////////////////////////
@@ -108,8 +117,8 @@ main()
         ///////////////////////////////////////
         // Get Wired and Wireless network statu
         ///////////////////////////////////////
-        if(wlan0_status == CONNECTED)
-            wlan0_status = get_network_status(WLAN0); //DISCONNECTED: must reset
+        if(wlan0_status_at_startup == CONNECTED)
+            wlan0_status = get_network_status(WLAN0);
         eth0_status = get_network_status(ETH0);
 
 	///////////////////////////////////////
@@ -136,3 +145,11 @@ main()
     }   
     close(tty_fd);
 }
+
+
+
+
+
+
+
+
