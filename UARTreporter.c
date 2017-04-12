@@ -16,7 +16,7 @@
 #define WLAN0		"/sbin/ifconfig wlan0"
 #define ETH0		"/sbin/ifconfig eth0"
 
-int get_network_status(char * cmd_path)
+int get_network_status(char * cmd_path, int current_status)
 {
     FILE * fp;
     char returnData[100];
@@ -36,6 +36,11 @@ int get_network_status(char * cmd_path)
     // execute cmd on network device
     /////////////////////////////////
     fp = popen(cmd_path, "r");
+    if(fp == NULL)
+    {
+        pclose(fp);
+        return current_status;
+    }
 
     ////////////////////////////////
     // parse fifth line of returned
@@ -50,11 +55,13 @@ int get_network_status(char * cmd_path)
     {
 	if(strcmp(returnData, oldDataPtr) == 0)
 	{
+            pclose(fp);
 	    return DISCONNECTED;
 	}
         else
 	{
 	    strcpy(oldDataPtr, returnData);
+            pclose(fp);
 	    return CONNECTED;
 	}
     }
@@ -105,9 +112,9 @@ main()
     // check wireless status at startup
     // if DISCONNECTED, ignore until reset
     //////////////////////////////////////
-    wlan0_status_at_startup = get_network_status(WLAN0);
+    wlan0_status_at_startup = get_network_status(WLAN0,wlan0_status_at_startup);
     sleep(10);
-    wlan0_status_at_startup = get_network_status(WLAN0);
+    wlan0_status_at_startup = get_network_status(WLAN0,wlan0_status_at_startup);
 
     /////////////////////////////////////////
     // check on status of network connections
@@ -118,8 +125,8 @@ main()
         // Get Wired and Wireless network statu
         ///////////////////////////////////////
         if(wlan0_status_at_startup == CONNECTED)
-            wlan0_status = get_network_status(WLAN0);
-        eth0_status = get_network_status(ETH0);
+            wlan0_status = get_network_status(WLAN0, wlan0_status);
+        eth0_status = get_network_status(ETH0, eth0_status);
 
 	///////////////////////////////////////
         // If network status changed, Uart Tx
